@@ -1,0 +1,169 @@
+LOAD DSA_ORDER_NO,
+	 DSA_CUSTOMER_NAME,
+     DSA_ORDER_QTY,
+     DSA_CATALOG_NO,
+	 DSA_CATAGORY,
+	 DSA_CATAGORY_G,
+     DSA_DIL_QTY,
+     DSA_TOBED,
+     DSA_TAX_INCLUSIVE_PRICE_BASE,
+     DSA_TAX_INCLUSIVE_PRICE,
+     DSA_ORDER_NET_VALUE,
+     DSA_GROSS_LOSS_VALUE,
+     DSA_GROSS_ORDER_VALUE,
+     DSA_GROSS_SALES_VALUE,
+     DSA_LS_VALUE,
+     DSA_OMONTH,
+     DSA_SVALUE,
+     DSA_PART_NO,
+     DSA_PART_NO_FULL,
+     DSA_I_SIZE,
+     DSA_ACC_GROUP,
+     DSA_PLANNER_BUYER,
+     DSA_DEL_MONTH,
+     DSA_DEL_YEAR
+     
+     
+     
+     ;
+     
+[Daily_Sales_Analysis]:
+SELECT
+    CASE substr(cj.catalog_no, 2, 1)
+        WHEN 'I' THEN
+            '0'
+        WHEN 'A' THEN
+            '1'
+        WHEN 'B' THEN
+            '2'
+        WHEN 'C' THEN
+            '3'
+        WHEN 'D' THEN
+            '4'
+        WHEN 'E' THEN
+            '5'
+        WHEN 'F' THEN
+            '6'
+        WHEN 'G' THEN
+            '7'
+        WHEN 'H' THEN
+            '8'
+        WHEN 'K' THEN
+            '9'
+    END     DSA_CATAGORY
+    ,
+    CASE
+        WHEN substr(cj.catalog_no, 1, 1) = 'H'
+             AND cj.customer_no IN ( 'DSS1', 'D100200' ) THEN
+            'Waves-DSS'
+        WHEN substr(cj.catalog_no, 1, 1) = 'H'
+             AND ce.cust_grp = 'M-EXP' THEN
+            'Waves-Export'
+        WHEN substr(cj.catalog_no, 1, 1) = 'H'
+             AND ce.cust_grp <> 'M-EXP' THEN
+            'Waves-Local'
+        WHEN cj.catalog_no LIKE '%BA'
+             AND ce.cust_grp = 'M-INT' THEN
+            'M-INE'
+        WHEN cj.customer_no IN ( 'DSS1', 'D100200' )
+             AND ce.cust_grp = 'M-INT' THEN
+            'DSS'
+        WHEN cj.customer_no NOT IN ( 'DSS1', 'D100200' )
+             AND ce.cust_grp = 'M-INT'
+             AND cj.catalog_no NOT LIKE '%BA' THEN
+            'Other'
+        ELSE
+            ce.cust_grp
+    END    DSA_CATAGORY_G
+    ,
+    ( cj.qty_shipped - cj.qty_returned )                                                                                                      AS
+    DSA_DIL_QTY,
+    ( cj.revised_qty_due - cj.qty_returned )                                                                                                  AS
+    DSA_order_qty,
+    
+    (( cj.revised_qty_due - cj.qty_returned ) * cj.BASE_SALE_UNIT_PRICE)
+    DSA_order_net_value,
+    
+    ( ( cj.revised_qty_due - cj.qty_returned ) - ( cj.qty_shipped - cj.qty_returned ) )                                                       AS
+    DSA_tobed,
+    
+    ( cj.sale_unit_price * cj.currency_rate )                                                                                                 AS
+    DSA_tax_inclusive_price_base,
+           
+    ( cj.sale_unit_price * cj.currency_rate ) * 1.15                                                                                          AS
+    DSA_tax_inclusive_price,
+           
+    ( ( cj.revised_qty_due - cj.qty_returned ) - ( cj.qty_shipped - cj.qty_returned ) ) * ( ( cj.sale_unit_price * cj.currency_rate ) * 1.15
+    ) AS DSA_gross_loss_value,
+           
+    ( cj.revised_qty_due - cj.qty_returned ) * ( ( cj.sale_unit_price * cj.currency_rate ) * 1.15 )                                           AS
+    DSA_gross_order_value,
+           
+    ( cj.qty_shipped - cj.qty_returned ) * ( ( cj.sale_unit_price * cj.currency_rate ) * 1.15 )                                               AS
+    DSA_gross_sales_value,
+           
+    ( ( cj.revised_qty_due - cj.qty_returned ) - ( cj.qty_shipped - cj.qty_returned ) ) * ( cj.sale_unit_price * cj.currency_rate )           AS
+    DSA_ls_value,
+    EXTRACT(MONTH FROM cj.wanted_delivery_date)                                                                                               AS
+    DSA_omonth,
+            
+    ( cj.qty_shipped - cj.qty_returned ) * cj.base_sale_unit_price                                                                            AS
+    DSA_svalue,
+    
+    substr(cj.part_no, 1, 6)                                                                                                                  AS
+    DSA_part_no,
+    
+    cj.part_no as DSA_PART_NO_FULL,
+    
+    substr(cj.catalog_no, - 2)                                                                                                                AS
+    DSA_i_size,
+    
+    ip.accounting_group                                                                                                                       AS
+    DSA_acc_group,
+    
+    ip.planner_buyer                                                                                                                          AS
+    DSA_planner_buyer,
+    
+    to_date(cj.promised_delivery_date , 'dd/mm/yyyy')                                                                                                                 AS
+    DSA_promised_delivery_date,
+    
+     cj.order_no     AS
+    dsa_order_no,
+    
+    cj.customer_name AS
+    dsa_customer_name,
+    
+    cj.catalog_no AS
+    dsa_catalog_no,
+    
+    extract(month from cj.promised_delivery_date) AS
+    dsa_del_month,
+    
+     extract(year from cj.promised_delivery_date) AS
+    dsa_del_year
+FROM
+    customer_order_join       cj
+    LEFT JOIN cust_ord_customer_ent     ce ON cj.customer_no = ce.customer_id
+    LEFT JOIN inventory_part            ip ON cj.part_no = ip.part_no
+WHERE
+        cj.contract = 'DSI1'
+    AND ip.planner_buyer IN ( 'D-MP', 'D-SP', 'D-SUB', 'D-KP', 'D-SS' )
+    AND substr(cj.catalog_no, - 2) <> '99'
+    AND cj.order_objstate <> 'Cancelled'
+    AND cj.objstate <> 'Cancelled'
+    AND cj.catalog_no NOT LIKE 'ANS%'
+    AND cj.catalog_no NOT LIKE 'BP%'
+    AND ip.accounting_group IN ( 'M-FG', 'M-SF' );
+    
+ 
+ LOAD DSA_PART_NO_FULL,
+ 	  DSA_QTY_ONHAND;
+      
+ [DSA_CURRENT_STOCK]:
+ 
+ select part_no as DSA_PART_NO_FULL,
+ sum(qty_onhand) as DSA_QTY_ONHAND
+ from dsi_lan_part_in_stock_sum
+ where contract='DSI1'
+ group by part_no;
+    
