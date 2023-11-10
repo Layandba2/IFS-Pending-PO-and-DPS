@@ -1,0 +1,53 @@
+LOAD  CUS_DELIVERED_QTY,
+      CUS_SALES_UNIT_PRICE,
+      CUS_DELIVERY_VALUE,
+      CUS_ORDER_QTY,
+      CUS_ORDER_VALUE,
+      CUS_PEND_QTY,
+      CUS_PEND_VALUE,
+      CUS_ORDER_NO,
+      CUS_AUTHORIZE_CODE,
+      CUS_PO_NO,
+      CUS_DATE_ENTERED,
+      CUS_WDD,
+      CUS_STATE,
+      CUS_CUSTOMER_NO,
+      CUS_CUSTOMER_NAME,
+      CUS_CATALOG_NO,
+      CUS_PDD
+
+
+
+;
+select
+    CJ.QTY_SHIPPED                                                                      as CUS_DELIVERED_QTY,
+    ( CJ.SALE_UNIT_PRICE * CJ.CURRENCY_RATE )                                           as CUS_SALES_UNIT_PRICE,
+    ( ( CJ.SALE_UNIT_PRICE * CJ.CURRENCY_RATE ) * CJ.QTY_SHIPPED )                      as CUS_DELIVERY_VALUE,
+    CJ.BUY_QTY_DUE                                                                      as CUS_ORDER_QTY,
+    ( ( CJ.SALE_UNIT_PRICE * CJ.CURRENCY_RATE ) * CJ.BUY_QTY_DUE )                      as CUS_ORDER_VALUE,
+       /* case when cj.OBJSTATE = 'Invoiced/Closed' and  cj.OBJSTATE ='Cancelled' then 0 else  (cj.BUY_QTY_DUE - cj.QTY_SHIPPED) 
+        end as cus_pend_qty,*/
+    ( CJ.BUY_QTY_DUE - CJ.QTY_SHIPPED )                                                 as CUS_PEND_QTY,
+    ( ( CJ.BUY_QTY_DUE - CJ.QTY_SHIPPED ) * ( CJ.SALE_UNIT_PRICE * CJ.CURRENCY_RATE ) ) as CUS_PEND_VALUE,
+    CO.ORDER_NO                                                                         as CUS_ORDER_NO,
+    CO.AUTHORIZE_CODE                                                                   as CUS_AUTHORIZE_CODE,
+    CO.CUSTOMER_PO_NO                                                                   as CUS_PO_NO,
+    CO.DATE_ENTERED                                                                     as CUS_DATE_ENTERED,
+        -- co.label_no as cus_label_no,
+    CO.WANTED_DELIVERY_DATE                                                             as CUS_WDD,
+    CO.state                                                                            as CUS_STATE,
+    CJ.CUSTOMER_NO                                                                      as CUS_CUSTOMER_NO,
+    CJ.CUSTOMER_NAME                                                                    as CUS_CUSTOMER_NAME,
+    CJ.CATALOG_NO                                                                       as CUS_CATALOG_NO,
+    CJ.PROMISED_DELIVERY_DATE                                                           as CUS_PDD
+from
+    CUSTOMER_ORDER      CO
+    left join CUSTOMER_ORDER_JOIN CJ on CO.ORDER_NO = CJ.ORDER_NO
+where
+        CO.CONTRACT = 'DSI1'
+    and CJ.CUSTOMER_NO <> 'D100999'
+    and CO.ORDER_NO not like 'J%'
+    and CO.state <> 'Cancelled'
+    and CO.state <> 'Invoiced/Closed'
+    and CJ.OBJSTATE <> 'Cancelled';
+           
